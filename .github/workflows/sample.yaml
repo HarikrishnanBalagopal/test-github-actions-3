@@ -8,13 +8,19 @@ jobs:
     steps:
       - name: checkout the code
         uses: actions/checkout@v2
+      - run: ls && cat config.yaml
       - name: create the kind cluster
         uses: helm/kind-action@v1.2.0
         with:
+          cluster_name: kind
           config: config.yaml
+          log_level: debug # https://github.com/kubernetes-sigs/kind/blob/80a6a355a2065823bbdae5048abf76a4f2a3ec9d/pkg/cmd/kind/root.go#L99
       - name: deploy to the cluster and test
         run: |
           echo 'start'
+          echo 'some info'
+          kind version
+          kubectl version
           kubectl get pods
           echo 'before applying ingress'
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
@@ -22,13 +28,30 @@ jobs:
           kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s
           echo 'after ingress comes online'
           kubectl get pods
+          kubectl get pods --namespace ingress-nginx
           echo 'before applying usage'
           kubectl apply -f https://kind.sigs.k8s.io/examples/ingress/usage.yaml
           echo 'after applying usage'
           kubectl get pods
+          kubectl wait --for=condition=ready pod --selector=app=foo --timeout=90s
+          echo 'after usage foo comes online'
+          kubectl get pods
+          kubectl wait --for=condition=ready pod --selector=app=bar --timeout=90s
+          echo 'after usage bar comes online'
+          kubectl get pods
+          kubectl get pods -o wide
+          kubectl get svc -o wide
+          kubectl describe svc foo-service
+          kubectl describe svc bar-service
+          kubectl get ingress
+          kubectl describe ingress example-ingress
+          kubectl get ingress example-ingress -o yaml
+          echo 'before ingress gets assigned an address'
+          kubectl wait ingress/example-ingress --for=jsonpath='status.loadBalancer.ingress[0].hostname'=localhost
+          echo 'after ingress gets assigned an address'
+          echo 'before testing usage'
           # should output "foo"
-          echo 'before testing usage'
-          curl localhost/foo
+          curl -iH 'Host: localhost' localhost/foo
           # should output "bar"
-          curl localhost/bar
-          echo 'before testing usage'
+          curl -iH 'Host: localhost' localhost/bar
+          echo 'after testing usage'

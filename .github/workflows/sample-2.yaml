@@ -1,0 +1,20 @@
+name: sample-2
+
+on: workflow_dispatch
+
+jobs:
+  create-cluster-deploy-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout the code
+        uses: actions/checkout@v2
+      - run: ls && cat config.yaml
+      - name: create the kind cluster
+        uses: helm/kind-action@main
+        with:
+          cluster_name: kind
+          config: config.yaml
+          kubectl_version: v1.23.3
+          log_level: debug # https://github.com/kubernetes-sigs/kind/blob/80a6a355a2065823bbdae5048abf76a4f2a3ec9d/pkg/cmd/kind/root.go#L99
+      - name: deploy to the cluster and test
+        run: bash -x main.sh
